@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Discord Formatter</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+      background: #1e1e1e;
+      color: white;
+    }
+    #pasteArea {
+      border: 2px dashed #888;
+      padding: 1em;
+      min-height: 150px;
+      background: #2c2c2c;
+      color: white;
+      margin-bottom: 1em;
+    }
+    pre {
+      white-space: pre-wrap;
+      background: #333;
+      padding: 1em;
+    }
+    .note {
+      color: #aaa;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Discord Formatter</h1>
+  <p class="note">Paste rich text with <kbd>Ctrl</kbd>+<kbd>V</kbd> into the box below:</p>
+  <div id="pasteArea" contenteditable="true"></div>
+  <h2>Converted Markdown</h2>
+  <pre id="output">(nothing yet)</pre>
+  <p class="note">Output is copied to your clipboard automatically.</p>
+
+  <script>
+    const pasteArea = document.getElementById('pasteArea');
+    const output = document.getElementById('output');
+
+    function htmlToDiscordMarkdown(node) {
+      let out = "";
+
+      for (let child of node.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          out += child.textContent;
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          const tag = child.tagName.toLowerCase();
+          const content = htmlToDiscordMarkdown(child);
+
+          switch (tag) {
+            case 'b':
+            case 'strong':
+              out += `**${content}**`;
+              break;
+            case 'i':
+            case 'em':
+              out += `*${content}*`;
+              break;
+            case 'u':
+              out += `__${content}__`;
+              break;
+            case 's':
+            case 'strike':
+              out += `~~${content}~~`;
+              break;
+            case 'code':
+              out += `\`${content}\``;
+              break;
+            case 'pre':
+              out += `\`\`\`\n${child.textContent}\n\`\`\`\n`;
+              break;
+            case 'h1':
+              out += `# ${content}\n\n`;
+              break;
+            case 'h2':
+              out += `## ${content}\n\n`;
+              break;
+            case 'h3':
+              out += `### ${content}\n\n`;
+              break;
+            case 'h4':
+              out += `#### ${content}\n\n`;
+              break;
+            case 'h5':
+              out += `##### ${content}\n\n`;
+              break;
+            case 'h6':
+              out += `###### ${content}\n\n`;
+              break;
+            case 'a':
+              const href = child.getAttribute('href');
+              out += `[${content}](${href})`;
+              break;
+            case 'ul':
+              for (let li of child.children) {
+                out += `- ${htmlToDiscordMarkdown(li)}\n`;
+              }
+              out += '\n';
+              break;
+            case 'ol':
+              let i = 1;
+              for (let li of child.children) {
+                out += `${i++}. ${htmlToDiscordMarkdown(li)}\n`;
+              }
+              out += '\n';
+              break;
+            case 'br':
+              out += '\n';
+              break;
+            case 'div':
+            case 'span':
+            case 'p':
+              out += `${content}\n\n`;
+              break;
+            default:
+              out += content;
+          }
+        }
+      }
+
+      return out;
+    }
+
+    pasteArea.addEventListener('paste', async (e) => {
+      e.preventDefault();
+
+      const htmlData = e.clipboardData.getData('text/html');
+      const plainData = e.clipboardData.getData('text/plain');
+
+      let html;
+      if (htmlData) {
+        html = htmlData;
+      } else {
+        html = plainData.replace(/\n/g, '<br>');
+      }
+
+      const temp = document.createElement('div');
+      temp.innerHTML = html;
+
+      const markdown = htmlToDiscordMarkdown(temp).trim();
+      output.textContent = markdown;
+
+      try {
+        await navigator.clipboard.writeText(markdown);
+        console.log('Copied to clipboard!');
+      } catch (err) {
+        console.error('Clipboard copy failed:', err);
+      }
+    });
+  </script>
+</body>
+</html>
